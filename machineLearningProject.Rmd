@@ -1,0 +1,81 @@
+---
+title: "Practical Machine Learning Project - Data Analysis Report"
+author: "Petra Hudeckova"
+date: "April 30, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+```{r warning=FALSE, message=FALSE}
+library(ggplot2)
+library(caret)
+library(randomForest)
+
+
+# downloading data
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "testing.csv")
+
+training <- read.csv("training.csv", na.strings = c("NA", "#DIV/0!"))
+testing <- read.csv("testing.csv")
+
+dim(training)
+
+```
+
+## Data cleaning, sampling exploration analysis
+Due to high number variables I decided to remove first columns which have nothing to do with analysis (user, etc) and variables, where are all values missing.
+```{r}
+training <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+
+training<-training[,colSums(is.na(training)) == 0]
+testing <-testing[,colSums(is.na(testing)) == 0]
+
+training$classe <- factor(training$classe)
+
+dim(training)
+
+```
+I sampled data into training (60 %) and testing (40%) partion.
+```{r}
+idx <- createDataPartition(y=training$classe, p=0.70, list=FALSE )
+training_data <- training[idx,]
+testing_data <- training[-idx,]
+```
+For exploration analysis I have decided to only include a histogram of classes.
+
+```{r}
+qplot(classe, data=training_data, main="Distribution of Classes")
+```
+
+## Prediction via random forest
+
+```{r warning=FALSE, message=FALSE}
+forestFit <- randomForest(classe~ .,data=training_data)
+
+# predict outcome for test data set using the random forest model
+pred <- predict(forestFit,testing_data)
+# logic value for whether or not the rf algorithm predicted correctly
+testing_data$predRight <- pred==testing_data$classe
+# tabulate results
+table(pred,testing_data$classe)
+sampleError <- 1 - sum(pred == testing_data$classe)/nrow(testing_data)
+
+```
+Model seems to be very accurate. Out of the sample error is `r sampleError`.
+
+## Conclusion
+I chose random forest to predict class. I have tried other algoritms (decision tree, knn) but errors were higher and it would take a long time to even knit this document. I ran prediction on testing data on quiz and passed.
+
+```{r}
+predict(forestFit, testing)
+```
+
